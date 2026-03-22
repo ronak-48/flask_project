@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered Object Detection System for real-time traffic monitoring, vehicle detection, and pedestrian analysis.">
+    <title>Traffic Monitoring — Object Detection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚦</text></svg>">
+</head>
+<body>
+
+<!-- ===== Navbar ===== -->
+<nav class="navbar">
+    <a href="/" class="navbar-brand">
+        <div class="navbar-logo">🚦</div>
+        <div>
+            <div class="navbar-title">TrafficVision AI</div>
+            <div class="navbar-subtitle">Object Detection System</div>
+        </div>
+    </a>
+    <div class="navbar-status">
+        <span class="dot"></span>
+        System Online
+    </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+    <div class="hero-badge">🔬 Powered by YOLOv8 &amp; Computer Vision</div>
+    <h1>
+        Intelligent <span class="gradient-text">Traffic Monitoring</span><br>
+        Object Detection
+    </h1>
+    <p>Upload traffic images to detect and classify vehicles, pedestrians, and objects in real time with confidence scoring and detailed analytics.</p>
+</section>
+
+<!-- ===== Main ===== -->
+<main class="main-container">
+
+    <!-- Upload Section -->
+    <section class="upload-section">
+        <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+            <div class="upload-card">
+                <div class="upload-card-header">
+                    <h2>
+                        <span class="icon">📤</span>
+                        Upload Image
+                    </h2>
+                    <div class="confidence-control">
+                        <label for="confidenceSlider">Confidence Threshold</label>
+                        <input type="range" id="confidenceSlider" name="confidence" min="10" max="95" value="25">
+                        <span id="confidenceValue" class="confidence-value">25%</span>
+                    </div>
+                </div>
+
+                <!-- Drop Zone -->
+                <div class="drop-zone" id="dropZone">
+                    <span class="drop-zone-icon">📷</span>
+                    <div class="drop-zone-text">Drag &amp; drop your traffic image here</div>
+                    <div class="drop-zone-hint">or <span class="browse-link">browse files</span> — Supports JPG, PNG, WEBP</div>
+                    <input type="file" id="fileInput" name="file" accept="image/*" required class="sr-only">
+                </div>
+
+                <!-- File Preview -->
+                <div class="file-preview" id="filePreview">
+                    <img class="file-preview-thumb" id="previewThumb" src="" alt="Preview">
+                    <div class="file-preview-info">
+                        <div class="file-preview-name" id="previewName"></div>
+                        <div class="file-preview-size" id="previewSize"></div>
+                    </div>
+                    <button type="button" class="file-preview-remove" id="previewRemove" title="Remove file">✕</button>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                    🔍 Analyze &amp; Detect Objects
+                </button>
+            </div>
+        </form>
+    </section>
+
+    {% if detections is defined and detections|length > 0 %}
+    <!-- ===== Results Section ===== -->
+    <section class="results-section">
+        <div class="results-header">
+            <h2>📊 Detection Results</h2>
+            <span class="results-timestamp">{{ timestamp }}</span>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-icon">🎯</div>
+                <div class="stat-card-value" data-count="{{ total_count }}">0</div>
+                <div class="stat-card-label">Objects Detected</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">🏷️</div>
+                <div class="stat-card-value" data-count="{{ unique_classes }}">0</div>
+                <div class="stat-card-label">Unique Classes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">📈</div>
+                <div class="stat-card-value" data-count="{{ avg_confidence }}" data-suffix="%">0</div>
+                <div class="stat-card-label">Avg Confidence</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">⚡</div>
+                <div class="stat-card-value" data-count="{{ inference_time }}" data-suffix="ms">0</div>
+                <div class="stat-card-label">Inference Time</div>
+            </div>
+        </div>
+
+        <!-- Image + Class Breakdown -->
+        <div class="results-grid">
+            <div class="result-image-card">
+                <h3>🖼️ Detected Image</h3>
+                <div class="result-image-wrapper">
+                    <img src="{{ url_for('static', filename='uploads/' + filename) }}" alt="Detection result">
+                    <span class="image-badge">{{ total_count }} object{{ 's' if total_count != 1 }} detected</span>
+                </div>
+            </div>
+
+            <div class="class-breakdown-card">
+                <h3>📋 Class Breakdown</h3>
+                {% for cls_name, cls_count in class_counts.items() %}
+                <div class="class-bar-item">
+                    <div class="class-bar-header">
+                        <span class="class-bar-label">{{ cls_name }}</span>
+                        <span class="class-bar-count">{{ cls_count }}</span>
+                    </div>
+                    <div class="class-bar-track">
+                        <div class="class-bar-fill" data-width="{{ (cls_count / total_count * 100)|round(1) }}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Detections Table -->
+        <div class="detections-table-card">
+            <h3>🔎 Detailed Detections</h3>
+            <div class="table-wrapper">
+                <table class="detections-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Class</th>
+                            <th>Confidence</th>
+                            <th>Bounding Box</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in detections %}
+                        <tr>
+                            <td class="detection-id">{{ loop.index }}</td>
+                            <td class="detection-class">
+                                <span class="detection-class-dot"></span>{{ d.label }}
+                            </td>
+                            <td>
+                                <div class="confidence-bar-wrapper">
+                                    <div class="confidence-bar">
+                                        <div class="confidence-bar-fill {{ 'high' if d.confidence >= 0.7 else ('medium' if d.confidence >= 0.4 else 'low') }}"
+                                             data-width="{{ (d.confidence * 100)|round(1) }}"></div>
+                                    </div>
+                                    <span class="confidence-text {{ 'high' if d.confidence >= 0.7 else ('medium' if d.confidence >= 0.4 else 'low') }}">
+                                        {{ (d.confidence * 100)|round(1) }}%
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="bbox-text">[{{ d.x1 }}, {{ d.y1 }}, {{ d.x2 }}, {{ d.y2 }}]</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% elif show_no_results is defined and show_no_results %}
+    <!-- No Detections Found -->
+    <section class="results-section" style="text-align:center; padding:60px 20px;">
+        <div style="font-size:64px; margin-bottom:16px;">🔍</div>
+        <h2 style="margin-bottom:8px; color: var(--text-primary);">No Objects Detected</h2>
+        <p style="color: var(--text-secondary); max-width:400px; margin:0 auto;">Try lowering the confidence threshold or uploading a different traffic image with clearer scene.</p>
+    </section>
+    {% endif %}
+
+</main>
+
+<!-- ===== Lightbox ===== -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img id="lightboxImg" src="" alt="Zoomed detection image">
+</div>
+
+<!-- ===== Loading Overlay ===== -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Analyzing traffic scene...</div>
+    <div class="loading-subtext">Running YOLOv8 object detection</div>
+</div>
+
+<!-- ===== Footer ===== -->
+<footer class="footer">
+    <p>Traffic Monitoring — Object Detection System</p>
+    <div class="tech-stack">
+        <span class="tech-tag">Flask</span>
+        <span class="tech-tag">YOLOv8</span>
+        <span class="tech-tag">OpenCV</span>
+        <span class="tech-tag">Python</span>
+    </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
