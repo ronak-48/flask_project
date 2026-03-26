@@ -12,8 +12,8 @@ UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load YOLO model — prefer custom best.pt, fallback to yolov8n.pt
-MODEL_PATH = "models/best.pt"
+# Load YOLO model — prefer custom 50_epoch_best.pt, fallback to yolov8n.pt
+MODEL_PATH = "models/50_epoch_best.pt"
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = "yolov8n.pt"
 model = YOLO(MODEL_PATH)
